@@ -5,13 +5,16 @@ const cors = require("cors");
 const Event = require("./Event");
 const fs = require("fs").promises;
 const path = require("path");
+const { v4: uuidv4 } = require("uuid");
+const cookieParser = require("cookie-parser");
 
 dotenv.config();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({ credentials: true, origin: "http://localhost:3000" }));
 app.use(express.json());
+app.use(cookieParser());
 
 const templateDataPath = path.join(__dirname, "./test-data.json");
 
@@ -37,14 +40,27 @@ mongoose.connect(process.env.MONGODB_URI).then(async () => {
 
 app.post("/track", async (req, res) => {
   const { eventName, parameters } = req.body;
+  const cookiesAccepted = req.cookies.cookiesAccepted === "true";
+  let sessionId = req.cookies.sessionId;
+
+  if (!cookiesAccepted) {
+    return res.status(403).json({ error: "Cookie-k nincsenek elfogadva, követés nem engedélyezett" });
+  }
+
+  if (!sessionId) {
+    sessionId = uuidv4();
+    res.cookie("sessionId", sessionId, { httpOnly: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
+  }
+
   try {
     const event = new Event({
       eventName,
       timestamp: new Date(),
       parameters,
+      sessionId,
     });
     await event.save();
-    res.status(201).json({ message: "Esemény rögzítve" });
+    res.status(201).json({ message: "Esemény rögzítve", sessionId });
   } catch (error) {
     console.error("Track hiba:", error);
     res.status(500).json({ error: "Hiba történt a track közben", details: error.message });
@@ -52,11 +68,12 @@ app.post("/track", async (req, res) => {
 });
 
 app.get("/events", async (req, res) => {
-  const { eventName, startDate, endDate, limit = 100 } = req.query;
+  const { eventName, startDate, endDate, sessionId, limit = 100 } = req.query;
 
   try {
     const query = {};
     if (eventName) query.eventName = eventName;
+    if (sessionId) query.sessionId = sessionId;
     if (startDate || endDate) {
       query.timestamp = {};
       if (startDate) query.timestamp.$gte = new Date(startDate);
@@ -72,11 +89,12 @@ app.get("/events", async (req, res) => {
 });
 
 app.get("/stats", async (req, res) => {
-  const { eventName, startDate, endDate } = req.query;
+  const { eventName, startDate, endDate, sessionId } = req.query;
 
   try {
     const match = {};
     if (eventName) match.eventName = eventName;
+    if (sessionId) match.sessionId = sessionId;
     if (startDate || endDate) {
       match.timestamp = {};
       if (startDate) match.timestamp.$gte = new Date(startDate);
@@ -87,12 +105,22 @@ app.get("/stats", async (req, res) => {
       { $match: match },
       {
         $group: {
-          _id: "$eventName",
+          _id: { eventName: "$eventName", sessionId: "$sessionId" },
           count: { $sum: 1 },
           latest: { $max: "$timestamp" },
+          userId: { $first: "$parameters.userId" }, // userId kinyerése
         },
       },
-      { $sort: { count: -1 } },
+      {
+        $group: {
+          _id: "$_id.eventName",
+          uniqueUsers: { $sum: 1 },
+          totalCount: { $sum: "$count" },
+          latest: { $max: "$latest" },
+          identifiedUsers: { $sum: { $cond: [{ $ne: ["$userId", null] }, 1, 0] } }, // userId-val rendelkező sessionök
+        },
+      },
+      { $sort: { totalCount: -1 } },
     ]);
 
     res.json(stats);
