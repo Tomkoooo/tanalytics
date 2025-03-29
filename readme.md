@@ -16,7 +16,7 @@ This project consists of an analytics dashboard and a corresponding server that 
 Create a .env file in the server directory with the following content:
 
 ```env
-MONGODB_URI=mongodb+srv://admin:admin@cluster0.tfml4.mongodb.net/analytics?retryWrites=true&w=majority
+MONGODB_URI=mongodb://localhost:2107
 PORT=3001
 ```
 Replace MONGODB_URI with your own MongoDB connection string.
