@@ -1,0 +1,23 @@
+[
+    {
+      "_id": "6604f1a2b8e4b2c3d4e5f6b1",
+      "eventName": "page_view",
+      "timestamp": "2025-03-27T10:00:00.000Z",
+      "parameters": { "page": "/contact", "userId": "user456" },
+      "sessionId": "7d793037-a8b2-4f7e-9b9e-8e4f9d6c2b1a"
+    },
+    {
+      "_id": "6604f1a2b8e4b2c3d4e5f6b2",
+      "eventName": "search",
+      "timestamp": "2025-03-27T10:15:00.000Z",
+      "parameters": { "query": "dental implants", "userId": "user456" },
+      "sessionId": "7d793037-a8b2-4f7e-9b9e-8e4f9d6c2b1a"
+    },
+    {
+      "_id": "6604f1a2b8e4b2c3d4e5f6b3",
+      "eventName": "button_click",
+      "timestamp": "2025-03-27T10:30:00.000Z",
+      "parameters": { "buttonId": "submit_form" },
+      "sessionId": "8e4f9d6c-2b1a-4f7e-9b9e-7d793037a8b2"
+    }
+  ]

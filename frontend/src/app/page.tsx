@@ -10,7 +10,7 @@ interface Event {
   eventName: string;
   timestamp: string;
   parameters: Record<string, string | number | object>;
-  sessionId?: string; // Opcionálisra állítjuk, hogy kezeljük a hibás adatokat
+  sessionId?: string;
 }
 
 interface Stat {
@@ -30,16 +30,36 @@ export default function Dashboard() {
     endDate: "",
     sessionId: "",
   });
+  const [selectedPage, setSelectedPage] = useState("clearsmile");
+  const [analyticsClient, setAnalyticsClient] = useState(
+    new AnalyticsClient(
+      "clearsmile",
+      "Ez az oldal cookie-kat használ az analitikához. Elfogadod?", // Magyar szöveg
+      "Elfogadom"
+    )
+  );
   const [showCookieConsent, setShowCookieConsent] = useState(false);
   const [uniqueSessions, setUniqueSessions] = useState<string[]>([]);
   const [eventNames, setEventNames] = useState<string[]>([]);
 
+  const pages = ["clearsmile", "regiadental"];
+
   useEffect(() => {
-    setShowCookieConsent(!document.cookie.includes("cookiesAccepted"));
-  }, []);
+    setShowCookieConsent(!analyticsClient.isCookiesAccepted);
+  }, [analyticsClient]);
+
+  useEffect(() => {
+    const newClient = new AnalyticsClient(
+      selectedPage,
+      "Ez az oldal cookie-kat használ az analitikához. Elfogadod?", // Példa magyar szöveg
+      "Elfogadom"
+    );
+    setAnalyticsClient(newClient);
+    setShowCookieConsent(!newClient.isCookiesAccepted);
+  }, [selectedPage]);
 
   const fetchEvents = async () => {
-    const data = await AnalyticsClient.fetchData<Event[]>("events", filters);
+    const data = await analyticsClient.fetchData<Event[]>("events", filters);
     if (Array.isArray(data)) {
       setEvents(data);
       setUniqueSessions([...new Set(data.map((e) => e.sessionId || "Ismeretlen"))]);
@@ -50,7 +70,7 @@ export default function Dashboard() {
   };
 
   const fetchStats = async () => {
-    const data = await AnalyticsClient.fetchData<Stat[]>("stats", filters);
+    const data = await analyticsClient.fetchData<Stat[]>("stats", filters);
     if (Array.isArray(data)) {
       setStats(data);
       setEventNames([...new Set(data.map((s) => s._id))]);
@@ -63,18 +83,22 @@ export default function Dashboard() {
   useEffect(() => {
     fetchEvents();
     fetchStats();
-  }, [filters]);
+  }, [filters, analyticsClient]);
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
   };
 
+  const handlePageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedPage(e.target.value);
+  };
+
   const handleTestClick = () => {
-    AnalyticsClient.track("test_button_click", { page: "dashboard", userId: "testUser" });
+    analyticsClient.track("test_button_click", { page: selectedPage, userId: "testUser" });
   };
 
   const handleAcceptCookies = () => {
-    document.cookie = "cookiesAccepted=true; max-age=31536000";
+    analyticsClient.acceptCookies();
     setShowCookieConsent(false);
   };
 
@@ -92,14 +116,19 @@ export default function Dashboard() {
     <div className="dashboard-container">
       {showCookieConsent && (
         <div className="cookie-consent">
-          <p>Ez az oldal cookie-kat használ az analitikához. Elfogadod?</p>
-          <button onClick={handleAcceptCookies}>Elfogadom</button>
+          <p>{analyticsClient.getCookieText()}</p>
+          <button onClick={handleAcceptCookies}>{analyticsClient.getButtonText()}</button>
         </div>
       )}
 
       <h1>Analitikai Dashboard</h1>
 
       <div className="filter-form">
+        <select name="page" value={selectedPage} onChange={handlePageChange}>
+          {pages.map((page) => (
+            <option key={page} value={page}>{page}</option>
+          ))}
+        </select>
         <select name="eventName" value={filters.eventName} onChange={handleFilterChange}>
           <option value="">Összes esemény</option>
           {eventNames.map((name) => (
