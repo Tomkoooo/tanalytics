@@ -91,6 +91,7 @@ cd frontend
 npm run dev
 ```
 Open your browser at: http://localhost:3000.
+
 ## Usage
  - ***Cookie Consent:***
 On page load, a cookie consent popup appears (e.g., "This site uses cookies for analytics. Do you accept?").
@@ -110,14 +111,83 @@ Events Table: Lists detailed event data.
 Click the "Test Click" button to record a test_button_click event.
 File Structure
 server/
-- analytics.js: The Node.js server code.
-- test-data-*.json: Test data files for each page.
-- .env: Environment variables.
+- ***analytics.js:*** The Node.js server code.
+- ***test-data-*.json:*** Test data files for each page.
+- ***.env:*** Environment variables.
 frontend/
- - src/app/page.tsx: The dashboard component.
- - src/lib/AnalyticsClient.ts: The analytics client class.
- - src/components/ChartComponent.tsx: The statistics chart component.
- - .env.local: Environment variables.
+ - ***src/app/page.tsx:*** The dashboard component.
+ - ***src/lib/AnalyticsClient.ts:*** The analytics client class.
+ - ***src/components/ChartComponent.tsx:*** The statistics chart component.
+ - ***.env.local:*** Environment variables.
+
+## Using the AnalyticsClient Class
+
+The AnalyticsClient class is designed to handle analytics tracking and data fetching for a specific page. Below is a brief guide on how to use it:
+
+### Initialization
+Create an instance of AnalyticsClient by providing the page name and optional cookie consent text:
+
+```typescript
+
+import AnalyticsClient from "@/lib/AnalyticsClient";
+
+// Initialize with default English text
+const client = new AnalyticsClient("clearsmile"); //where clearsmile is the page's name
+
+// Initialize with custom text (e.g., Hungarian)
+const clientHU = new AnalyticsClient(
+  "clearsmile", //page name
+  "Ez az oldal cookie-kat használ az analitikához. Elfogadod?", // cookie text
+  "Elfogadom" // text on accept button for cookies
+);
+```
+### Tracking Events
+Use the track method to record events, but ensure cookies are accepted first:
+
+```typescript
+
+// Check if cookies are accepted
+if (!client.isCookiesAccepted) {
+  client.acceptCookies(); // Accept cookies programmatically
+}
+
+// Track an event
+client.track("button_click", { buttonId: "submit", userId: "user123" });
+```
+### Fetching Data
+Use the fetchData method to retrieve events or statistics:
+
+```typescript
+
+// Fetch events
+const events = await client.fetchData<Event[]>("events", { eventName: "page_view" });
+if (events) {
+  console.log(events);
+}
+
+// Fetch stats
+const stats = await client.fetchData<Stat[]>("stats");
+if (stats) {
+  console.log(stats);
+}
+```
+### Cookie Consent
+Access the cookie consent text and button text for display:
+
+```typescript
+console.log(client.getCookieText());    // "This site uses cookies for analytics. Do you accept?"
+console.log(client.getButtonText());    // "Accept"
+
+// In a React component:
+<div>
+  <p>{client.getCookieText()}</p>
+  <button onClick={() => client.acceptCookies()}>{client.getButtonText()}</button>
+</div>
+```
+### Notes
+The isCookiesAccepted property indicates if cookies are accepted.
+The track method only works if isCookiesAccepted is true.
+Use TypeScript generics with fetchData to type the response (e.g., Event[], Stat[]).
 
 ## Features
 Multi-Page Support: Tracks analytics for multiple pages (e.g., clearsmile, regiadental) in separate MongoDB collections.
