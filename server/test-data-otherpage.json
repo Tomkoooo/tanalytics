@@ -1,0 +1,16 @@
+[
+    {
+      "_id": "6604f1a2b8e4b2c3d4e5f6c1",
+      "eventName": "page_view",
+      "timestamp": "2025-03-28T12:00:00.000Z",
+      "parameters": { "page": "/about", "userId": "user789" },
+      "sessionId": "9e8d7c6b-5a4f-3e2d-1c0b-123456789abc"
+    },
+    {
+      "_id": "6604f1a2b8e4b2c3d4e5f6c2",
+      "eventName": "form_submit",
+      "timestamp": "2025-03-28T12:15:00.000Z",
+      "parameters": { "formId": "contact_form", "userId": "user789" },
+      "sessionId": "9e8d7c6b-5a4f-3e2d-1c0b-123456789abc"
+    }
+  ]

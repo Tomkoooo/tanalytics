@@ -30,39 +30,36 @@ export default function Dashboard() {
     endDate: "",
     sessionId: "",
   });
-  const [selectedPage, setSelectedPage] = useState("clearsmile");
-  const [analyticsClient, setAnalyticsClient] = useState(
-    new AnalyticsClient(
-      "clearsmile",
-      "Ez az oldal cookie-kat használ az analitikához. Elfogadod?", // Magyar szöveg
-      "Elfogadom"
-    )
-  );
+  const apiToken = "test-token-1"; // Cseréld ki a kívánt tokenre
+  const [analyticsClient] = useState(new AnalyticsClient(apiToken));
+  const [pages, setPages] = useState<string[]>([]);
+  const [selectedPage, setSelectedPage] = useState<string>("");
   const [showCookieConsent, setShowCookieConsent] = useState(false);
   const [uniqueSessions, setUniqueSessions] = useState<string[]>([]);
   const [eventNames, setEventNames] = useState<string[]>([]);
-
-  const pages = ["clearsmile", "regiadental"];
 
   useEffect(() => {
     setShowCookieConsent(!analyticsClient.isCookiesAccepted);
   }, [analyticsClient]);
 
+  // Oldalak lekérése a token alapján
   useEffect(() => {
-    const newClient = new AnalyticsClient(
-      selectedPage,
-      "Ez az oldal cookie-kat használ az analitikához. Elfogadod?", // Példa magyar szöveg
-      "Elfogadom"
-    );
-    setAnalyticsClient(newClient);
-    setShowCookieConsent(!newClient.isCookiesAccepted);
-  }, [selectedPage]);
+    const fetchPages = async () => {
+      const availablePages = await analyticsClient.getPages();
+      if (availablePages) {
+        setPages(availablePages);
+        setSelectedPage(availablePages[0] || ""); // Alapértelmezett első oldal
+      }
+    };
+    fetchPages();
+  }, [analyticsClient]);
 
   const fetchEvents = async () => {
-    const data = await analyticsClient.fetchData<Event[]>("events", filters);
+    if (!selectedPage) return;
+    const data = await analyticsClient.fetchData<Event[]>(selectedPage, "events", filters);
     if (Array.isArray(data)) {
       setEvents(data);
-      setUniqueSessions([...new Set(data.map((e) => e.sessionId || "Ismeretlen"))]);
+      setUniqueSessions([...new Set(data.map((e) => e.sessionId || "Unknown"))]);
     } else {
       setEvents([]);
       setUniqueSessions([]);
@@ -70,7 +67,8 @@ export default function Dashboard() {
   };
 
   const fetchStats = async () => {
-    const data = await analyticsClient.fetchData<Stat[]>("stats", filters);
+    if (!selectedPage) return;
+    const data = await analyticsClient.fetchData<Stat[]>(selectedPage, "stats", filters);
     if (Array.isArray(data)) {
       setStats(data);
       setEventNames([...new Set(data.map((s) => s._id))]);
@@ -83,7 +81,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchEvents();
     fetchStats();
-  }, [filters, analyticsClient]);
+  }, [filters, selectedPage]);
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
@@ -94,7 +92,9 @@ export default function Dashboard() {
   };
 
   const handleTestClick = () => {
-    analyticsClient.track("test_button_click", { page: selectedPage, userId: "testUser" });
+    if (selectedPage) {
+      analyticsClient.track(selectedPage, "test_button_click", { page: selectedPage, userId: "testUser" });
+    }
   };
 
   const handleAcceptCookies = () => {
@@ -121,32 +121,33 @@ export default function Dashboard() {
         </div>
       )}
 
-      <h1>Analitikai Dashboard</h1>
+      <h1>Analytics Dashboard</h1>
 
       <div className="filter-form">
         <select name="page" value={selectedPage} onChange={handlePageChange}>
+          {pages.length === 0 && <option value="">No pages available</option>}
           {pages.map((page) => (
             <option key={page} value={page}>{page}</option>
           ))}
         </select>
         <select name="eventName" value={filters.eventName} onChange={handleFilterChange}>
-          <option value="">Összes esemény</option>
+          <option value="">All Events</option>
           {eventNames.map((name) => (
             <option key={name} value={name}>{name}</option>
           ))}
         </select>
         <select name="sessionId" value={filters.sessionId} onChange={handleFilterChange}>
-          <option value="">Összes session</option>
+          <option value="">All Sessions</option>
           {uniqueSessions.map((id) => (
             <option key={id} value={id}>{id.slice(0, 8)}...</option>
           ))}
         </select>
         <input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} />
         <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} />
-        <button onClick={handleTestClick}>Teszt kattintás</button>
+        <button onClick={handleTestClick}>Test Click</button>
       </div>
 
-      <h2>Események időbeli használata</h2>
+      <h2>Event Timeline</h2>
       <div className="chart-container">
         {chartData.length > 0 ? (
           <LineChart width={600} height={300} data={chartData}>
@@ -154,28 +155,28 @@ export default function Dashboard() {
             <YAxis />
             <Tooltip />
             <Legend />
-            <Line type="monotone" dataKey="count" stroke="#1a73e8" name="Események száma" />
+            <Line type="monotone" dataKey="count" stroke="#1a73e8" name="Event Count" />
           </LineChart>
         ) : (
-          <p>Nincs időbeli adat</p>
+          <p>No timeline data</p>
         )}
       </div>
 
-      <h2>Események statisztikája</h2>
+      <h2>Event Statistics</h2>
       <div className="chart-container">
-        {stats.length > 0 ? <ChartComponent data={stats} /> : <p>Nincs statisztika adat</p>}
+        {stats.length > 0 ? <ChartComponent data={stats} /> : <p>No statistics data</p>}
       </div>
 
-      <h2>Események</h2>
+      <h2>Events</h2>
       {events.length > 0 ? (
         <table>
           <thead>
             <tr>
-              <th>Esemény neve</th>
-              <th>Időpont</th>
+              <th>Event Name</th>
+              <th>Timestamp</th>
               <th>Session ID</th>
               <th>User ID</th>
-              <th>Paraméterek</th>
+              <th>Parameters</th>
             </tr>
           </thead>
           <tbody>
@@ -183,15 +184,15 @@ export default function Dashboard() {
               <tr key={event._id}>
                 <td>{event.eventName}</td>
                 <td>{new Date(event.timestamp).toLocaleString()}</td>
-                <td>{event.sessionId ? `${event.sessionId.slice(0, 8)}...` : "Ismeretlen"}</td>
-                <td>{(event.parameters.userId as string) || "Nincs"}</td>
+                <td>{event.sessionId ? `${event.sessionId.slice(0, 8)}...` : "Unknown"}</td>
+                <td>{(event.parameters.userId as string) || "None"}</td>
                 <td>{JSON.stringify(event.parameters)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       ) : (
-        <p>Nincs esemény adat</p>
+        <p>No event data</p>
       )}
     </div>
   );
